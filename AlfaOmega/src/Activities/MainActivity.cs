@@ -63,7 +63,7 @@ namespace AlfaOmega.Activities
             _lat.Text = "lat: " + lat;
             _lon.Text = "lon: " + lon;
 
-            // do the http-stuff
+            // get the vegReference based on the lat & lon
             var url = "https://www.vegvesen.no/nvdb/api/vegreferanse/koordinat?lon=" + lon.ToString("") + "&lat=" + lat.ToString("") + "&geometri=WGS84";
             var json = new JSONObject(Get(url));
 
@@ -74,7 +74,8 @@ namespace AlfaOmega.Activities
 
             var vegReferanse = json.GetString("vegReferanse").Split(Convert.ToChar("/"))[3];
 
-            var url2 = "https://www.vegvesen.no/nvdb/api/v2/vegobjekter/105?vegreferanse=" + vegReferanse;
+            // get the object id 105 (speed limit) on set vegReference
+            var url2 = "https://www.vegvesen.no/nvdb/api/v2/vegobjekter/105?vegreferanse=" + vegReferanse; // TODO this don't work in here, but works in the browser... WHY?!
 
             Log.Debug("url2", url2);
 
@@ -82,6 +83,7 @@ namespace AlfaOmega.Activities
 
             Log.Debug("json2", json2.ToString());
 
+            // get the speed limit with the heighest id (this should be the latest one (FYI: speedlimits have changed over the years, all speed limits are in the database for historical reasons(?)))
             var url3 =
                 json2.GetJSONArray("vegObjekter")
                     .GetJSONObject(json.GetJSONArray("vegObjekter").Length() - 1)
@@ -92,6 +94,8 @@ namespace AlfaOmega.Activities
             var json3 = new JSONObject(Get(url3));
 
             Log.Debug("json3", json3.ToString());
+
+            // set the speed-limit to the textview.
 
             var res = json3.GetJSONArray("egenskaper").GetJSONObject(0).GetString("verdi");
             _tvSl.Text = res + " km/t";
