@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using Android.App;
@@ -7,6 +8,7 @@ using Android.OS;
 using Android.Util;
 using Android.Widget;
 using Java.Lang;
+using Java.Util;
 using Org.Json;
 
 namespace AlfaOmega.Activities
@@ -72,10 +74,13 @@ namespace AlfaOmega.Activities
 
             if (json.GetString("kommuneNr") == "0") return;
 
-            var vegReferanse = json.GetString("vegReferanse").Split(Convert.ToChar("/"))[3];
+            var kommuneNr = json.GetString("kommuneNr");
+
+            var vegReferanse = json.GetString("visningsNavn");
 
             // get the object id 105 (speed limit) on set vegReference
-            var url2 = "https://www.vegvesen.no/nvdb/api/v2/vegobjekter/105?vegreferanse=" + vegReferanse; // TODO this don't work in here, but works in the browser... WHY?!
+            // API dok: https://www.vegvesen.no/nvdb/apidokumentasjon/#/get/vegobjekter
+            var url2 = "https://www.vegvesen.no/nvdb/api/v2/vegobjekter/105?vegreferanse=" + vegReferanse.Replace(" ", "") + "&inkluder=lokasjon&segmentering=false";
 
             Log.Debug("url2", url2);
 
@@ -84,10 +89,22 @@ namespace AlfaOmega.Activities
             Log.Debug("json2", json2.ToString());
 
             // get the speed limit with the heighest id (this should be the latest one (FYI: speedlimits have changed over the years, all speed limits are in the database for historical reasons(?)))
-            var url3 =
-                json2.GetJSONArray("vegObjekter")
-                    .GetJSONObject(json.GetJSONArray("vegObjekter").Length() - 1)
-                    .GetString("href");
+
+            var objs = json2.GetJSONArray("vegObjekter");
+
+            var list = new List<JSONObject>();
+
+
+            // getting a list of possible objects based on the kommuneNr (because for some f*ced up reason the result returns objects in other kommunes aswell...)
+            for (int i = 0; i < objs.Length() - 1; i++)
+            {
+                if (objs.GetJSONObject(i).GetJSONObject("lokasjon").GetJSONArray("kommuner").GetString(0) == kommuneNr)
+                    list.Add(objs.GetJSONObject(i));
+            }
+
+            if (list.Count == 0) return;
+
+            var url3 = list[list.Count - 1].GetString("href");
 
             Log.Debug("url3", url3);
 
