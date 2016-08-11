@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using Android.App;
@@ -8,7 +7,6 @@ using Android.OS;
 using Android.Util;
 using Android.Widget;
 using Java.Lang;
-using Java.Util;
 using Org.Json;
 
 namespace AlfaOmega.Activities
@@ -45,7 +43,9 @@ namespace AlfaOmega.Activities
         private string Get(string url)
         {
             var request = WebRequest.Create(url);
-            //request.Headers.Set("Accept", "application/vnd.vegvesen.nvdb-v1+json");
+            //request.Headers.Set(HttpRequestHeader.Accept, "application/vnd.vegvesen.nvdb-v1+json");
+
+            //request.Headers.Set(HttpRequestHeader.Accept, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36");
 
             var sb = new StringBuilder();
             var response = (HttpWebResponse)request.GetResponse();
@@ -76,7 +76,7 @@ namespace AlfaOmega.Activities
 
             var kommuneNr = json.GetString("kommuneNr");
 
-            var vegReferanse = json.GetString("visningsNavn");
+            var vegReferanse = kommuneNr + json.GetString("visningsNavn");
 
             // get the object id 105 (speed limit) on set vegReference
             // API dok: https://www.vegvesen.no/nvdb/apidokumentasjon/#/get/vegobjekter
