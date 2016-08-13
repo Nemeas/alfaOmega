@@ -1,24 +1,27 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
+using AlfaOmega.helpers;
 using Android.App;
 using Android.Locations;
 using Android.OS;
 using Android.Util;
 using Android.Widget;
-using Java.Lang;
 using Org.Json;
+using Void = Java.Lang.Void;
 
 namespace AlfaOmega.Activities
 {
     [Activity(Label = "AlfaOmega", MainLauncher = true, Icon = "@drawable/icon")]
     public class MainActivity : Activity, ILocationListener
     {
-        private TextView _tvSl;
+        private static TextView _tvSl;
         private TextView _lon;
         private TextView _lat;
         private LocationManager _lm;
         private const int Secs = 3;
+
+        private static string kommune;
 
         protected override void OnCreate(Bundle bundle)
         {
@@ -32,6 +35,8 @@ namespace AlfaOmega.Activities
             // Set our view from the "main" layout resource
             SetContentView(Resource.Layout.Main);
 
+            ServicePointManager.ServerCertificateValidationCallback = AcceptAllCertifications;
+
             _tvSl = FindViewById<TextView>(Resource.Id.speed_limit);
             _lon = FindViewById<TextView>(Resource.Id.lon);
             _lat = FindViewById<TextView>(Resource.Id.lat);
@@ -40,21 +45,9 @@ namespace AlfaOmega.Activities
 
         }
 
-        private string Get(string url)
+        public bool AcceptAllCertifications(object sender, System.Security.Cryptography.X509Certificates.X509Certificate certification, System.Security.Cryptography.X509Certificates.X509Chain chain, System.Net.Security.SslPolicyErrors sslPolicyErrors)
         {
-            var request = WebRequest.Create(url);
-            //request.Headers.Set(HttpRequestHeader.Accept, "application/vnd.vegvesen.nvdb-v1+json");
-
-            //request.Headers.Set(HttpRequestHeader.Accept, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36");
-
-            var sb = new StringBuilder();
-            var response = (HttpWebResponse)request.GetResponse();
-
-            using (var sr = new StreamReader(response.GetResponseStream()))
-            {
-                sb.Append(sr.ReadToEnd());
-            }
-            return sb.ToString();
+            return true;
         }
 
         public void OnLocationChanged(Location location)
@@ -67,56 +60,136 @@ namespace AlfaOmega.Activities
 
             // get the vegReference based on the lat & lon
             var url = "https://www.vegvesen.no/nvdb/api/vegreferanse/koordinat?lon=" + lon.ToString("") + "&lat=" + lat.ToString("") + "&geometri=WGS84";
-            var json = new JSONObject(Get(url));
 
-            Log.Debug("url", url);
-            Log.Debug("json", json.ToString());
-
-            if (json.GetString("kommuneNr") == "0") return;
-
-            var kommuneNr = json.GetString("kommuneNr");
-
-            var vegReferanse = kommuneNr + json.GetString("visningsNavn");
-
-            // get the object id 105 (speed limit) on set vegReference
-            // API dok: https://www.vegvesen.no/nvdb/apidokumentasjon/#/get/vegobjekter
-            var url2 = "https://www.vegvesen.no/nvdb/api/v2/vegobjekter/105?vegreferanse=" + vegReferanse.Replace(" ", "") + "&inkluder=lokasjon&segmentering=false";
-
-            Log.Debug("url2", url2);
-
-            var json2 = new JSONObject(Get(url2));
-
-            Log.Debug("json2", json2.ToString());
-
-            // get the speed limit with the heighest id (this should be the latest one (FYI: speedlimits have changed over the years, all speed limits are in the database for historical reasons(?)))
-
-            var objs = json2.GetJSONArray("vegObjekter");
-
-            var list = new List<JSONObject>();
-
-
-            // getting a list of possible objects based on the kommuneNr (because for some f*ced up reason the result returns objects in other kommunes aswell...)
-            for (int i = 0; i < objs.Length() - 1; i++)
+            try
             {
-                if (objs.GetJSONObject(i).GetJSONObject("lokasjon").GetJSONArray("kommuner").GetString(0) == kommuneNr)
-                    list.Add(objs.GetJSONObject(i));
+                new AsyncTask1().Execute(url); // starting the show.
+            }
+            catch (Exception e)
+            {
+                Log.Debug("ERROR!", e.Message);
+            }
+        }
+
+        private class AsyncTask1 : AsyncTask<string, Void, string>
+        {
+            protected override string RunInBackground(params string[] @params)
+            {
+                try
+                {
+                    Log.Debug("url1", @params[0]);
+                    return HttpHelper.Get(@params[0]);
+                }
+                catch (Exception e)
+                {
+                    Log.Debug("ERROR1", e.Message);
+                    return null;
+                }
             }
 
-            if (list.Count == 0) return;
+            protected override void OnPostExecute(string result)
+            {
+                
+                var json = new JSONObject(result);
+                
+                Log.Debug("res1", json.ToString());
 
-            var url3 = list[list.Count - 1].GetString("href");
+                var kommuneNr = json.GetString("kommuneNr");
 
-            Log.Debug("url3", url3);
+                if (kommuneNr == "0") return;
 
-            var json3 = new JSONObject(Get(url3));
+                kommune = kommuneNr;
 
-            Log.Debug("json3", json3.ToString());
+                var visningsNavn = json.GetString("visningsNavn");
 
-            // set the speed-limit to the textview.
+                var vegReferanse = kommuneNr + visningsNavn;
 
-            var res = json3.GetJSONArray("egenskaper").GetJSONObject(0).GetString("verdi");
-            _tvSl.Text = res + " km/t";
+                // get the object id 105 (speed limit) on set vegReference
+                // API dok: https://www.vegvesen.no/nvdb/apidokumentasjon/#/get/vegobjekter
 
+                var url2 = "https://www.vegvesen.no/nvdb/api/v2/vegobjekter/105?vegreferanse=" + vegReferanse.Replace(" ", "") + "&inkluder=lokasjon&segmentering=false";
+
+                new AsyncTask2().Execute(url2); // continuing the show =D
+            }
+        }
+
+        
+
+        private class AsyncTask2 : AsyncTask<string, Void, string>
+        {
+            protected override string RunInBackground(params string[] @params)
+            {
+                try
+                {
+                    Log.Debug("url2", @params[0]);
+                    return HttpHelper.Get(@params[0]);
+
+                }
+                catch (Exception e)
+                {
+                    Log.Debug("ERROR2", e.Message);
+                    return null;
+                }
+            }
+
+            protected override void OnPostExecute(string result)
+            {
+                var json2 = new JSONObject(result);
+
+                var kommuneNr = kommune; // TODO make better..
+
+                Log.Debug("res2", json2.ToString());
+
+                // get the speed limit with the heighest id (this should be the latest one (FYI: speedlimits have changed over the years, all speed limits are in the database for historical reasons(?)))
+
+                var objs = json2.GetJSONArray("objekter");
+
+                var list = new List<JSONObject>();
+
+                // getting a list of possible objects based on the kommuneNr (because for some f*ced up reason the result returns objects in other kommunes aswell...)
+                for (int i = 0; i < objs.Length() - 1; i++)
+                {
+                    if (objs.GetJSONObject(i).GetJSONObject("lokasjon").GetJSONArray("kommuner").GetString(0) == kommuneNr)
+                        list.Add(objs.GetJSONObject(i));
+                }
+
+                if (list.Count == 0) return;
+
+                var url3 = list[list.Count - 1].GetString("href");
+
+                new AsyncTask3().Execute(url3);
+            }
+        }
+
+        private class AsyncTask3 : AsyncTask<string, Void, string>
+        {
+            protected override string RunInBackground(params string[] @params)
+            {
+                try
+                {
+                    Log.Debug("url3", @params[0]);
+                    return HttpHelper.Get(@params[0]);
+                }
+                catch (Exception e)
+                {
+                    Log.Debug("Error3", e.Message);
+                    return null;
+                }
+            }
+
+            protected override void OnPostExecute(string result)
+            {
+                
+                var json3 = new JSONObject(result);
+
+                Log.Debug("json3", json3.ToString());
+
+                // set the speed-limit to the textview.
+
+                var res = json3.GetJSONArray("egenskaper").GetJSONObject(0).GetString("verdi");
+                _tvSl.Text = res + " km/t";
+                
+            }
         }
 
         public void OnProviderDisabled(string provider)
