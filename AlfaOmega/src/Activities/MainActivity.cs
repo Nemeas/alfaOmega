@@ -35,19 +35,12 @@ namespace AlfaOmega.Activities
             // Set our view from the "main" layout resource
             SetContentView(Resource.Layout.Main);
 
-            ServicePointManager.ServerCertificateValidationCallback = AcceptAllCertifications;
-
             _tvSl = FindViewById<TextView>(Resource.Id.speed_limit);
             _lon = FindViewById<TextView>(Resource.Id.lon);
             _lat = FindViewById<TextView>(Resource.Id.lat);
             _lm = (LocationManager) GetSystemService(LocationService);
             _lm.RequestLocationUpdates(LocationManager.GpsProvider, Secs * 1000, 1, this); 
 
-        }
-
-        public bool AcceptAllCertifications(object sender, System.Security.Cryptography.X509Certificates.X509Certificate certification, System.Security.Cryptography.X509Certificates.X509Chain chain, System.Net.Security.SslPolicyErrors sslPolicyErrors)
-        {
-            return true;
         }
 
         public void OnLocationChanged(Location location)
