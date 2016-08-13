@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Runtime.CompilerServices;
 using AlfaOmega.helpers;
 using Android.App;
 using Android.Locations;
@@ -19,9 +20,10 @@ namespace AlfaOmega.Activities
         private TextView _lon;
         private TextView _lat;
         private LocationManager _lm;
+        private static ImageView _iv;
         private const int Secs = 3;
 
-        private static string kommune;
+        private static string _kommune;
 
         protected override void OnCreate(Bundle bundle)
         {
@@ -38,6 +40,8 @@ namespace AlfaOmega.Activities
             _tvSl = FindViewById<TextView>(Resource.Id.speed_limit);
             _lon = FindViewById<TextView>(Resource.Id.lon);
             _lat = FindViewById<TextView>(Resource.Id.lat);
+            _iv = (ImageView)FindViewById(Resource.Id.speedLimit);
+
             _lm = (LocationManager) GetSystemService(LocationService);
             _lm.RequestLocationUpdates(LocationManager.GpsProvider, Secs * 1000, 1, this); 
 
@@ -91,7 +95,7 @@ namespace AlfaOmega.Activities
 
                 if (kommuneNr == "0") return;
 
-                kommune = kommuneNr;
+                _kommune = kommuneNr;
 
                 var visningsNavn = json.GetString("visningsNavn");
 
@@ -129,7 +133,7 @@ namespace AlfaOmega.Activities
             {
                 var json2 = new JSONObject(result);
 
-                var kommuneNr = kommune; // TODO make better..
+                var kommuneNr = _kommune; // TODO make better..
 
                 Log.Debug("res2", json2.ToString());
 
@@ -181,7 +185,44 @@ namespace AlfaOmega.Activities
 
                 var res = json3.GetJSONArray("egenskaper").GetJSONObject(0).GetString("verdi");
                 _tvSl.Text = res + " km/t";
-                
+
+                Log.Debug("res3", res);
+
+                SetImage(res);
+            }
+        }
+
+        public static void SetImage(string limit)
+        {
+            switch (limit)
+            {
+                case "30":
+                    _iv.SetImageResource(Resource.Drawable.f30);
+                    break;
+                case "40":
+                    _iv.SetImageResource(Resource.Drawable.f40);
+                    break;
+                case "50":
+                    _iv.SetImageResource(Resource.Drawable.f50);
+                    break;
+                case "60":
+                    _iv.SetImageResource(Resource.Drawable.f60);
+                    break;
+                case "70":
+                    _iv.SetImageResource(Resource.Drawable.f70);
+                    break;
+                case "80":
+                    _iv.SetImageResource(Resource.Drawable.f80);
+                    break;
+                case "90":
+                    _iv.SetImageResource(Resource.Drawable.f90);
+                    break;
+                case "100":
+                    _iv.SetImageResource(Resource.Drawable.f100);
+                    break;
+                case "110":
+                    _iv.SetImageResource(Resource.Drawable.f110);
+                    break;
             }
         }
 
@@ -197,7 +238,7 @@ namespace AlfaOmega.Activities
 
         public void OnStatusChanged(string provider, Availability status, Bundle extras)
         {
-            Toast.MakeText(this, "Status has changed..", ToastLength.Short).Show();
+            //Toast.MakeText(this, "Status has changed..", ToastLength.Short).Show();
         }
     }
 }

@@ -8,9 +8,7 @@ namespace AlfaOmega.helpers
     {
         public static string Get(string url)
         {
-            var request = (HttpWebRequest)HttpWebRequest.Create(url);
-            request.Proxy = null;
-            request.UseDefaultCredentials = true;
+            var request = (HttpWebRequest)WebRequest.Create(url);
             request.Accept = "application/json";
 
             var sb = new StringBuilder();
