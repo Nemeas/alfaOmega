@@ -24,7 +24,7 @@
     <ImageView
         android:src="@android:drawable/ic_menu_gallery"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="316.5dp"
         android:id="@+id/speedLimit"
-        android:layout_marginBottom="450.0dp" />
+        android:layout_marginBottom="450.0dp"/>
 </LinearLayout>

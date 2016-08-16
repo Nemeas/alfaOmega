@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Runtime.CompilerServices;
+using AlfaOmega.enums;
 using AlfaOmega.helpers;
 using Android.App;
 using Android.Locations;
@@ -75,7 +74,7 @@ namespace AlfaOmega.Activities
                 try
                 {
                     Log.Debug("url1", @params[0]);
-                    return HttpHelper.Get(@params[0]);
+                    return HttpHelper.Get(@params[0], Accept.V1);
                 }
                 catch (Exception e)
                 {
@@ -86,7 +85,9 @@ namespace AlfaOmega.Activities
 
             protected override void OnPostExecute(string result)
             {
-                
+
+                if (result == null) return; // TODO
+
                 var json = new JSONObject(result);
                 
                 Log.Debug("res1", json.ToString());
@@ -119,7 +120,7 @@ namespace AlfaOmega.Activities
                 try
                 {
                     Log.Debug("url2", @params[0]);
-                    return HttpHelper.Get(@params[0]);
+                    return HttpHelper.Get(@params[0], Accept.V2);
 
                 }
                 catch (Exception e)
@@ -131,6 +132,8 @@ namespace AlfaOmega.Activities
 
             protected override void OnPostExecute(string result)
             {
+                if (result == null) return; // TODO
+
                 var json2 = new JSONObject(result);
 
                 var kommuneNr = _kommune; // TODO make better..
@@ -176,7 +179,8 @@ namespace AlfaOmega.Activities
 
             protected override void OnPostExecute(string result)
             {
-                
+                if (result == null) return; // TODO
+
                 var json3 = new JSONObject(result);
 
                 Log.Debug("json3", json3.ToString());
