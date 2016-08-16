@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using AlfaOmega.enums;
 using AlfaOmega.helpers;
+using AlfaOmega.models;
 using Android.App;
 using Android.Locations;
 using Android.OS;
@@ -20,7 +21,9 @@ namespace AlfaOmega.Activities
         private TextView _lat;
         private LocationManager _lm;
         private static ImageView _iv;
-        private const int Secs = 3;
+        private const int Secs = 30;
+
+        private static readonly RoadObject Ro = new RoadObject();
 
         private static string _kommune;
 
@@ -54,6 +57,8 @@ namespace AlfaOmega.Activities
             _lat.Text = "lat: " + lat;
             _lon.Text = "lon: " + lon;
 
+            if (Ro.HasObject() && Ro.IsCoordinateInside(lat, lon)) return; // We are still on the same road.. no need to check the speedlimit again!
+
             // get the vegReference based on the lat & lon
             var url = "https://www.vegvesen.no/nvdb/api/vegreferanse/koordinat?lon=" + lon.ToString("") + "&lat=" + lat.ToString("") + "&geometri=WGS84";
 
@@ -63,6 +68,7 @@ namespace AlfaOmega.Activities
             }
             catch (Exception e)
             {
+
                 Log.Debug("ERROR!", e.Message);
             }
         }
@@ -74,7 +80,7 @@ namespace AlfaOmega.Activities
                 try
                 {
                     Log.Debug("url1", @params[0]);
-                    return HttpHelper.Get(@params[0], Accept.V1);
+                    return HttpHelper.Get(@params[0]);
                 }
                 catch (Exception e)
                 {
@@ -101,6 +107,8 @@ namespace AlfaOmega.Activities
                 var visningsNavn = json.GetString("visningsNavn");
 
                 var vegReferanse = kommuneNr + visningsNavn;
+
+                if (Ro.HasObject() && Ro.RoadReference() == vegReferanse) return; // no need to do any further calls, we are still on the same road. TODO - check if this is enough to check (can there be different speedLimits on the same roadReference?)
 
                 // get the object id 105 (speed limit) on set vegReference
                 // API dok: https://www.vegvesen.no/nvdb/apidokumentasjon/#/get/vegobjekter
@@ -182,6 +190,8 @@ namespace AlfaOmega.Activities
                 if (result == null) return; // TODO
 
                 var json3 = new JSONObject(result);
+
+                Ro.SpeedLimitObject = json3;
 
                 Log.Debug("json3", json3.ToString());
 
