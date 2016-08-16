@@ -73,9 +73,6 @@
     <None Include="Properties\AndroidManifest.xml" />
   </ItemGroup>
   <ItemGroup>
-    <None Include=".gitignore" />
-  </ItemGroup>
-  <ItemGroup>
     <AndroidResource Include="Resources\drawable\f30.jpg" />
   </ItemGroup>
   <ItemGroup>
