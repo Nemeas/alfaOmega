@@ -21,7 +21,7 @@ namespace AlfaOmega.Activities
         private TextView _lat;
         private LocationManager _lm;
         private static ImageView _iv;
-        private const int Secs = 30;
+        private const int Secs = 5;
 
         private static readonly RoadObject Ro = new RoadObject();
 
@@ -57,7 +57,11 @@ namespace AlfaOmega.Activities
             _lat.Text = "lat: " + lat;
             _lon.Text = "lon: " + lon;
 
-            if (Ro.HasObject() && Ro.IsCoordinateInside(lat, lon)) return; // We are still on the same road.. no need to check the speedlimit again!
+            if (Ro.HasObject() && Ro.IsCoordinateInside(lat, lon))
+            {
+                Log.Debug("Ok", "Keep Calm And Continue ☺");
+                return; // We are still on the same road.. no need to check the speedlimit again!
+            }
 
             // get the vegReference based on the lat & lon
             var url = "https://www.vegvesen.no/nvdb/api/vegreferanse/koordinat?lon=" + lon.ToString("") + "&lat=" + lat.ToString("") + "&geometri=WGS84";
@@ -103,6 +107,8 @@ namespace AlfaOmega.Activities
                 if (kommuneNr == "0") return;
 
                 _kommune = kommuneNr;
+
+                Log.Debug("kommune", kommuneNr);
 
                 var visningsNavn = json.GetString("visningsNavn");
 
@@ -163,7 +169,7 @@ namespace AlfaOmega.Activities
 
                 if (list.Count == 0) return;
 
-                var url3 = list[list.Count - 1].GetString("href");
+                var url3 = list[list.Count - 1].GetString("href") + "?srid=4326"; // making the result return lat lon instead of northing easting
 
                 new AsyncTask3().Execute(url3);
             }
