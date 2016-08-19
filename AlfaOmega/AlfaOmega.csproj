@@ -62,7 +62,11 @@
     <Compile Include="Resources\Resource.Designer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="src\enums\Accept.cs" />
+    <Compile Include="src\helpers\CoordinateExtractor.cs" />
+    <Compile Include="src\helpers\Geometry.cs" />
     <Compile Include="src\helpers\HttpHelper.cs" />
+    <Compile Include="src\models\LatLon.cs" />
+    <Compile Include="src\helpers\Result.cs" />
     <Compile Include="src\models\RoadObject.cs" />
   </ItemGroup>
   <ItemGroup>

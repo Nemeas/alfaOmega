@@ -4,6 +4,7 @@ using AlfaOmega.enums;
 using AlfaOmega.helpers;
 using AlfaOmega.models;
 using Android.App;
+using Android.Content;
 using Android.Locations;
 using Android.OS;
 using Android.Util;
@@ -21,11 +22,11 @@ namespace AlfaOmega.Activities
         private TextView _lat;
         private LocationManager _lm;
         private static ImageView _iv;
-        private const int Secs = 5;
+        private const int Secs = 4;
 
         private static readonly RoadObject Ro = new RoadObject();
 
-        private static string _kommune;
+        protected PowerManager.WakeLock MWakeLock;
 
         protected override void OnCreate(Bundle bundle)
         {
@@ -44,8 +45,28 @@ namespace AlfaOmega.Activities
             _lat = FindViewById<TextView>(Resource.Id.lat);
             _iv = (ImageView)FindViewById(Resource.Id.speedLimit);
 
-            _lm = (LocationManager) GetSystemService(LocationService);
-            _lm.RequestLocationUpdates(LocationManager.GpsProvider, Secs * 1000, 1, this); 
+            PowerManager pm = (PowerManager) GetSystemService(PowerService);
+
+            MWakeLock = pm.NewWakeLock(WakeLockFlags.ScreenDim, "AlfaOmega");
+            MWakeLock.Acquire();
+
+        }
+
+        protected override void OnResume()
+        {
+            base.OnResume();
+
+            _lm = (LocationManager)GetSystemService(LocationService);
+            _lm.RequestLocationUpdates(LocationManager.GpsProvider, Secs * 1000, 1, this);
+
+        }
+
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+
+            _lm.RemoveUpdates(this);
+            MWakeLock.Release();
 
         }
 
@@ -60,6 +81,7 @@ namespace AlfaOmega.Activities
             if (Ro.HasObject() && Ro.IsCoordinateInside(lat, lon))
             {
                 Log.Debug("Ok", "Keep Calm And Continue ☺");
+                SetImage(Ro.SpeedLimit()); // the screen might have tilted, need to set the image again..
                 return; // We are still on the same road.. no need to check the speedlimit again!
             }
 
@@ -68,23 +90,23 @@ namespace AlfaOmega.Activities
 
             try
             {
-                new AsyncTask1().Execute(url); // starting the show.
+                new AsyncTask1().Execute(url, lat + "," + lon); // starting the show.
             }
             catch (Exception e)
             {
-
+                _tvSl.Text = "(" + _tvSl.Text + ")";
                 Log.Debug("ERROR!", e.Message);
             }
         }
 
-        private class AsyncTask1 : AsyncTask<string, Void, string>
+        private class AsyncTask1 : AsyncTask<string, Void, helpers.Result>
         {
-            protected override string RunInBackground(params string[] @params)
+            protected override helpers.Result RunInBackground(params string[] @params)
             {
                 try
                 {
                     Log.Debug("url1", @params[0]);
-                    return HttpHelper.Get(@params[0]);
+                    return new helpers.Result(HttpHelper.Get(@params[0], Accept.V1), @params[1]);
                 }
                 catch (Exception e)
                 {
@@ -93,48 +115,40 @@ namespace AlfaOmega.Activities
                 }
             }
 
-            protected override void OnPostExecute(string result)
+            protected override void OnPostExecute(helpers.Result result)
             {
 
                 if (result == null) return; // TODO
 
-                var json = new JSONObject(result);
+                var json = new JSONObject(result.Res);
                 
                 Log.Debug("res1", json.ToString());
 
                 var kommuneNr = json.GetString("kommuneNr");
 
-                if (kommuneNr == "0") return;
-
-                _kommune = kommuneNr;
-
-                Log.Debug("kommune", kommuneNr);
-
                 var visningsNavn = json.GetString("visningsNavn");
 
                 var vegReferanse = kommuneNr + visningsNavn;
 
-                if (Ro.HasObject() && Ro.RoadReference() == vegReferanse) return; // no need to do any further calls, we are still on the same road. TODO - check if this is enough to check (can there be different speedLimits on the same roadReference?)
-
                 // get the object id 105 (speed limit) on set vegReference
                 // API dok: https://www.vegvesen.no/nvdb/apidokumentasjon/#/get/vegobjekter
 
-                var url2 = "https://www.vegvesen.no/nvdb/api/v2/vegobjekter/105?vegreferanse=" + vegReferanse.Replace(" ", "") + "&inkluder=lokasjon&segmentering=false";
+                var url2 = "https://www.vegvesen.no/nvdb/api/v2/vegobjekter/105?vegreferanse=" + vegReferanse.Replace(" ", "") + "&inkluder=lokasjon&segmentering=false&srid=4326";
 
-                new AsyncTask2().Execute(url2); // continuing the show =D
+                new AsyncTask2().Execute(url2, result.Attachement); // continuing the show =D
             }
         }
 
         
 
-        private class AsyncTask2 : AsyncTask<string, Void, string>
+        private class AsyncTask2 : AsyncTask<string, Void, helpers.Result>
         {
-            protected override string RunInBackground(params string[] @params)
+            protected override helpers.Result RunInBackground(params string[] @params)
             {
                 try
                 {
                     Log.Debug("url2", @params[0]);
-                    return HttpHelper.Get(@params[0], Accept.V2);
+                    return new helpers.Result(HttpHelper.Get(@params[0], Accept.V2),@params[1]);
 
                 }
                 catch (Exception e)
@@ -144,13 +158,11 @@ namespace AlfaOmega.Activities
                 }
             }
 
-            protected override void OnPostExecute(string result)
+            protected override void OnPostExecute(helpers.Result result)
             {
                 if (result == null) return; // TODO
 
-                var json2 = new JSONObject(result);
-
-                var kommuneNr = _kommune; // TODO make better..
+                var json2 = new JSONObject(result.Res);
 
                 Log.Debug("res2", json2.ToString());
 
@@ -158,17 +170,30 @@ namespace AlfaOmega.Activities
 
                 var objs = json2.GetJSONArray("objekter");
 
+                var lat = double.Parse(result.Attachement.Split(Convert.ToChar(","))[0]);
+                var lon = double.Parse(result.Attachement.Split(Convert.ToChar(","))[1]);
+
                 var list = new List<JSONObject>();
 
                 // getting a list of possible objects based on the kommuneNr (because for some f*ced up reason the result returns objects in other kommunes aswell...)
                 for (int i = 0; i < objs.Length() - 1; i++)
                 {
-                    if (objs.GetJSONObject(i).GetJSONObject("lokasjon").GetJSONArray("kommuner").GetString(0) == kommuneNr)
-                        list.Add(objs.GetJSONObject(i));
+                    var lineString =
+                        objs.GetJSONObject(i).GetJSONObject("lokasjon").GetJSONObject("geometri").GetString("wkt");
+
+                    if (Geometry.IsCoordinateInsideGeometry(lineString, lat, lon, 0.1)) list.Add(objs.GetJSONObject(i));
+
                 }
 
-                if (list.Count == 0) return;
+                
 
+                if (list.Count == 0)
+                {
+                    Log.Debug("OBS!!", "no items match the lon lat");
+                    return;
+                }
+
+                // TODO - if there for some reason are more than 1 in this list, we need to find the most likely one...
                 var url3 = list[list.Count - 1].GetString("href") + "?srid=4326"; // making the result return lat lon instead of northing easting
 
                 new AsyncTask3().Execute(url3);
